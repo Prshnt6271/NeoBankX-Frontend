@@ -22,7 +22,7 @@ export default function ResetPassword() {
     try {
 
       const res = await API.post(
-        "/auth/reset-password",
+        "/api/auth/reset-password",
         {
           email,
           otp,
