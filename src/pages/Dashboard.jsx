@@ -150,7 +150,7 @@ const Dashboard = memo(() => {
   // ---- Data fetching (silent option) ----
   const loadDashboard = useCallback(async (silent = false) => {
     try {
-      const res = await API.get("/dashboard");
+      const res = await API.get("/api/dashboard");
       setData(normalizeDashboardData(res.data));
       setError("");
     } catch (err) {
