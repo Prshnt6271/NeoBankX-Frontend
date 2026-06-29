@@ -18,7 +18,7 @@ export default function Deposit() {
     try {
       setLoading(true);
       setMessage({ text: "", type: "" });
-      const res = await API.post(`/bank/deposit?amount=${amount}`);
+      const res = await API.post(`/api/bank/deposit?amount=${amount}`);
       setMessage({ text: res.data || "Deposit successful!", type: "success" });
       setAmount("");
     } catch (err) {
