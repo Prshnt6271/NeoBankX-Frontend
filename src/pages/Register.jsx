@@ -33,7 +33,7 @@ export default function Register() {
     try {
       setLoading(true);
       setError("");
-      await API.post("/auth/register", payload);
+      await API.post("/api/auth/register", payload);
       navigate("/login");
     } catch (err) {
       setError("Registration failed. Please check your details and try again.");
