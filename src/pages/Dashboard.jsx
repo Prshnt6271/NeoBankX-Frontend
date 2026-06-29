@@ -161,7 +161,7 @@ const Dashboard = memo(() => {
 
   const loadTxns = useCallback(async (silent = false) => {
     try {
-      const res = await API.get(`/transactions/${accountNumber}`);
+      const res = await API.get(`/api/transactions/${accountNumber}`);
       setTxns(res.data || []);
     } catch (err) {
       console.error(err);

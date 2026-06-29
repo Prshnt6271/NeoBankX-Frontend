@@ -41,7 +41,7 @@ export default function Transactions() {
 
   const loadTransactions = async () => {
     try {
-      const res = await API.get(`/transactions/${accountNumber}`);
+      const res = await API.get(`/api/transactions/${accountNumber}`);
       const data = Array.isArray(res.data)
         ? res.data
         : res.data?.data || res.data?.transactions || [];

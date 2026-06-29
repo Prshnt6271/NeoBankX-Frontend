@@ -28,7 +28,7 @@ export default function Transfer() {
   const handleTransfer = async () => {
     try {
       setLoading(true); setError(""); setSuccess("");
-      const res = await API.post("/transactions/transfer", {
+      const res = await API.post("/api/transactions/transfer", {
         toAccount: data.toAccount,
         amount: Number(data.amount),
       });

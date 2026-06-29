@@ -16,7 +16,7 @@ export default function LimitsOverview() {
 
   const fetchLimits = async () => {
     try {
-      const res = await API.get("/limits");
+      const res = await API.get("api/limits");
       setLimits(res.data);
     } catch (err) {
       console.error(err);
