@@ -12,7 +12,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from "lucide-react";
-import API from "../../api/API";
+import API from "../../api/api";
 
 // ---------- Toast Context (self-contained) ----------
 const ToastContext = createContext(null);
