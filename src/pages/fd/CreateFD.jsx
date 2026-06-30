@@ -93,7 +93,7 @@ function CreateFDContent() {
     }
     try {
       setLoading(true);
-      await API.post("/fd/create", {
+      await API.post("/api/fd/create", {
         amount: numAmount,
         tenureMonths: tenure,
       });
