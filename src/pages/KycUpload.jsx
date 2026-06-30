@@ -71,7 +71,7 @@ export default function KycUpload() {
 
   const fetchKycStatus = async () => {
     try {
-      const res = await API.get(`/kyc/me?email=${email}`);
+      const res = await API.get(`api/kyc/me?email=${email}`);
       setKycStatus(res.data.status);
     } catch {
       console.log("No KYC found yet");
@@ -92,7 +92,7 @@ export default function KycUpload() {
       data.append("panFile", panFile);
       data.append("aadhaarFile", aadhaarFile);
 
-      const res = await API.post("/kyc/submit", data, {
+      const res = await API.post("api/kyc/submit", data, {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "multipart/form-data" }
       });
       showToast(res.data || "KYC Submitted Successfully");
