@@ -78,11 +78,20 @@ const ScheduledTransfers = memo(() => {
 
       try {
         setLoading(true);
+        const payload = {
+  toAccount: form.toAccount,
+  amount: Number(form.amount),
+  remarks: form.remarks,
+  scheduledAt: dateObj.toISOString(),
+};
+
+console.log("SENDING:", payload);
         await API.post("/api/scheduled", {
           toAccount: form.toAccount,
           amount: Number(form.amount),
           remarks: form.remarks,
           scheduledAt: dateObj.toISOString(),
+          
         });
 
         setForm({ toAccount: "", amount: "", remarks: "" });
