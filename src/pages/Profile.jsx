@@ -80,7 +80,7 @@ export default function Profile() {
     }
     try {
       setIsSaving(true);
-      const res = await API.put("/profile", editData);
+      const res = await API.put("/api/profile", editData);
       showToast(res.data?.message || "Profile updated successfully!");
       fetchProfile();
     } catch (err) {
@@ -103,7 +103,7 @@ export default function Profile() {
     }
     try {
       setIsSaving(true);
-      const res = await API.post("/profile/change-password", passwordData);
+      const res = await API.post("/api/profile/change-password", passwordData);
       if (res.data === "Password Updated Successfully") {
         showToast(res.data);
         setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" });
