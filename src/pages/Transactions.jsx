@@ -90,12 +90,16 @@ export default function Transactions() {
           ].filter(Boolean).map(v => v.toLowerCase());
           if (!haystack.some(v => v.includes(q))) return false;
         }
-        if (txnType !== "all" && t.transactionType?.toUpperCase() !== txnType) return false;
         if (fromDate && toDate) {
-          const d = (t.transactionDate || "").split("T")[0].split(" ")[0];
-          if (d && (d < fromDate || d > toDate)) return false;
-        }
-        return true;
+  const txDate = new Date(t.transactionDate);
+
+  const localDate =
+    `${txDate.getFullYear()}-${String(txDate.getMonth() + 1).padStart(2, "0")}-${String(txDate.getDate()).padStart(2, "0")}`;
+
+  if (localDate < fromDate || localDate > toDate) {
+    return false;
+  }
+}
       })
       .sort((a, b) => {
         const da = new Date(a.transactionDate).getTime();
