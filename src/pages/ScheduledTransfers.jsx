@@ -37,7 +37,7 @@ const ScheduledTransfers = memo(() => {
   const loadTransfers = useCallback(async () => {
     try {
       setTableLoading(true);
-      const res = await API.get("api/scheduled");
+      const res = await API.get("/api/scheduled");
       setTransfers(res.data || []);
     } catch (err) {
       console.error("Failed to load transfers:", err);
@@ -78,7 +78,7 @@ const ScheduledTransfers = memo(() => {
 
       try {
         setLoading(true);
-        await API.post("api/scheduled", {
+        await API.post("/api/scheduled", {
           toAccount: form.toAccount,
           amount: Number(form.amount),
           remarks: form.remarks,
