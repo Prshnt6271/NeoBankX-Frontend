@@ -28,7 +28,7 @@ export default function Withdraw() {
   const handleWithdraw = async () => {
     try {
       setLoading(true); clearMsg();
-      const res = await API.post(`/bank/withdraw?accountNumber=${accountNumber}&amount=${amount}`);
+      const res = await API.post(`api/bank/withdraw?accountNumber=${accountNumber}&amount=${amount}`);
       showMsg(res.data || "Withdrawal successful!", "success");
       setAmount("");
       setStep(1);
