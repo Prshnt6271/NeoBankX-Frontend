@@ -54,7 +54,7 @@ export default function Profile() {
   const fetchProfile = async () => {
     try {
       setIsLoading(true);
-      const res = await API.get("/profile");
+      const res = await API.get("api/profile");
       setProfile(res.data);
       setEditData({
         firstName: res.data.firstName || "",
