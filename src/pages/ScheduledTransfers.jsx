@@ -78,7 +78,7 @@ const ScheduledTransfers = memo(() => {
 
       try {
         setLoading(true);
-        await API.post("/scheduled", {
+        await API.post("api/scheduled", {
           toAccount: form.toAccount,
           amount: Number(form.amount),
           remarks: form.remarks,
