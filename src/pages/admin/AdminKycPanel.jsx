@@ -88,7 +88,7 @@ export default function AdminKycPanel() {
   // ── approve ────────────────────────────────────────────────────────────────
   const handleApprove = async (id) => {
     try {
-      await API.put(`/kyc/status/${id}`, null, { params: { status: "APPROVED" } });
+      await API.put(`/api/kyc/status/${id}`, null, { params: { status: "APPROVED" } });
       toast.success("KYC approved successfully");
       fetchKycs();
     } catch (err) {
@@ -107,7 +107,7 @@ export default function AdminKycPanel() {
       return;
     }
     try {
-      await API.put(`/kyc/status/${rejectModal.id}`, null, {
+      await API.put(`/api/kyc/status/${rejectModal.id}`, null, {
         params: { status: "REJECTED", reason: rejectModal.reason.trim() },
       });
       toast.success("KYC rejected");

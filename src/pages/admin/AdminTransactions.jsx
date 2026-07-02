@@ -76,7 +76,7 @@ export default function AdminTransactions() {
   const loadTransactions = async () => {
     try {
       setLoading(true);
-      const res = await API.get("/admin/transactions");
+      const res = await API.get("/api/admin/transactions");
       setTransactions(res.data || []);
     } catch (err) {
       console.error(err);

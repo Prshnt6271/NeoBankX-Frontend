@@ -80,8 +80,8 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const [uRes, aRes] = await Promise.all([
-        API.get("/admin/users"),
-        API.get("/admin/accounts"),
+        API.get("/api/admin/users"),
+        API.get("/api/admin/accounts"),
       ]);
       setUsers(uRes.data   || []);
       setAccounts(aRes.data || []);
@@ -98,8 +98,8 @@ export default function AdminDashboard() {
   const clearSearch  = () => { setSearchInput(""); setSearch(""); };
 
   // ── account actions ────────────────────────────────────────────────────────
-  const closeAccount    = async (id) => { try { await API.put(`/admin/account/close/${id}`);    fetchAll(); } catch(e){ console.error(e); } };
-  const activateAccount = async (id) => { try { await API.put(`/admin/account/activate/${id}`); fetchAll(); } catch(e){ console.error(e); } };
+  const closeAccount    = async (id) => { try { await API.put(`/api/admin/account/close/${id}`);    fetchAll(); } catch(e){ console.error(e); } };
+  const activateAccount = async (id) => { try { await API.put(`/api/admin/account/activate/${id}`); fetchAll(); } catch(e){ console.error(e); } };
 
   // ── derived KPIs ───────────────────────────────────────────────────────────
   const activeCount  = useMemo(() => accounts.filter(a => a.active).length,       [accounts]);
