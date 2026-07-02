@@ -21,6 +21,31 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
+// ============================================================
+// THEME TOKENS — "Classic Trust" deep blues + "Growth & Stability"
+// teal/emerald, on clean neutral (slate) surfaces.
+// ============================================================
+const THEME = {
+  heroGradient: "from-blue-900 via-blue-800 to-teal-700",
+  heroGlowA: "bg-teal-300/20",
+  heroGlowB: "bg-blue-300/10",
+  accentGradient: "from-blue-700 to-teal-600",
+  accentSolid: "#0f766e", // teal-700
+  accentSolidAlt: "#1d4ed8", // blue-700
+  ring: "focus-visible:ring-teal-500",
+};
+
+// Category palette derived from the theme (blues -> teals -> emerald),
+// with a neutral slate reserved for anything uncategorized.
+const CATEGORY_COLORS = [
+  "#1d4ed8", // blue-700
+  "#0f766e", // teal-700
+  "#059669", // emerald-600
+  "#3b82f6", // blue-500
+  "#2dd4bf", // teal-400
+  "#64748b", // slate-500 (fallback / "Other")
+];
+
 // ---------- Helpers ----------
 const formatCurrency = (value) =>
   Number(value || 0).toLocaleString("en-IN", {
@@ -28,6 +53,8 @@ const formatCurrency = (value) =>
     currency: "INR",
     maximumFractionDigits: 2,
   });
+
+const formatShortCurrency = (value) => formatCurrency(value).replace("INR", "₹");
 
 const getDateRange = (period) => {
   const now = new Date();
@@ -51,16 +78,24 @@ const getDateRange = (period) => {
   return start;
 };
 
+// A transaction is treated as "money in" (credit) if its type mentions
+// deposit; everything else (withdraw, transfer, FD creation, bill pay, etc.)
+// is treated as "money out" (debit/spend). This keeps "Total Spent" and the
+// spending charts from being skewed by incoming money, which was previously
+// mixed together and produced misleading totals/graphs.
+const isCreditType = (type) => /deposit/i.test(type || "");
+
 // ---------- Animated Balance ----------
 const AnimatedBalance = memo(({ amount }) => {
   const [display, setDisplay] = useState(0);
   const rafRef = useRef(null);
+  const prevAmountRef = useRef(0);
 
   useEffect(() => {
     const start = performance.now();
-    const from = Number(display) || 0;
+    const from = prevAmountRef.current;
     const to = Number(amount) || 0;
-    const duration = 800;
+    const duration = 600;
 
     const step = (now) => {
       const elapsed = Math.min(now - start, duration);
@@ -70,6 +105,8 @@ const AnimatedBalance = memo(({ amount }) => {
       setDisplay(current);
       if (elapsed < duration) {
         rafRef.current = requestAnimationFrame(step);
+      } else {
+        prevAmountRef.current = to;
       }
     };
 
@@ -79,11 +116,12 @@ const AnimatedBalance = memo(({ amount }) => {
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [amount]);
 
   return (
     <p className="mt-4 text-3xl font-semibold text-white sm:text-4xl">
-      {formatCurrency(display).replace("INR", "₹")}
+      {formatShortCurrency(display)}
     </p>
   );
 });
@@ -95,6 +133,57 @@ const SkeletonCard = ({ className = "" }) => (
   >
     <div className="h-full w-full rounded-[1.75rem] bg-gradient-to-br from-slate-100/50 to-slate-200/50" />
   </div>
+);
+
+// ---------- Custom chart tooltips (themed, accurate values) ----------
+const TrendTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null;
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white/95 px-4 py-3 text-sm shadow-lg backdrop-blur">
+      <p className="font-semibold text-slate-900">{label}</p>
+      <p className="mt-1 text-teal-700">
+        {formatShortCurrency(payload[0].value)}
+      </p>
+    </div>
+  );
+};
+
+// ---------- Full category breakdown (always visible — works identically
+// on touch and mouse devices, so nothing is hidden behind hover-only UX) ----------
+const CategoryBreakdownList = ({ categories, total, activeName, onHover }) => (
+  <ul className="mt-5 space-y-2">
+    {categories.map((entry, index) => {
+      const pct = total > 0 ? ((entry.value / total) * 100).toFixed(1) : "0.0";
+      const isActive = activeName === entry.name;
+      return (
+        <li
+          key={entry.name}
+          onMouseEnter={() => onHover(entry.name)}
+          onMouseLeave={() => onHover(null)}
+          onClick={() => onHover(isActive ? null : entry.name)}
+          className={`flex cursor-pointer items-center justify-between rounded-xl px-3 py-2.5 transition duration-150 ${
+            isActive ? "bg-slate-100" : "hover:bg-slate-50"
+          }`}
+        >
+          <span className="flex items-center gap-2.5 text-sm font-medium text-slate-700">
+            <span
+              className="h-2.5 w-2.5 shrink-0 rounded-full"
+              style={{
+                backgroundColor: CATEGORY_COLORS[index % CATEGORY_COLORS.length],
+              }}
+            />
+            {entry.name}
+          </span>
+          <span className="flex items-baseline gap-2 text-sm">
+            <span className="font-semibold text-slate-900">
+              {formatShortCurrency(entry.value)}
+            </span>
+            <span className="text-xs text-slate-400">{pct}%</span>
+          </span>
+        </li>
+      );
+    })}
+  </ul>
 );
 
 // ---------- Main Dashboard ----------
@@ -109,6 +198,13 @@ const Dashboard = memo(() => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
+  const [activeCategory, setActiveCategory] = useState(null);
+
+  // Guards against overlapping requests (a slow request combined with a
+  // 5s poll could otherwise pile up in-flight calls and make everything
+  // feel sluggish) and lets us cancel stale requests on unmount.
+  const isFetchingRef = useRef(false);
+  const abortRef = useRef(null);
 
   // ---- Data normalisation (unchanged) ----
   const resolveDashboardPayload = (rawData) => {
@@ -147,48 +243,103 @@ const Dashboard = memo(() => {
     };
   };
 
-  // ---- Data fetching (silent option) ----
-  const loadDashboard = useCallback(async (silent = false) => {
+  // ---- Data fetching (silent option, abortable) ----
+  const loadDashboard = useCallback(async (silent, signal) => {
     try {
-      const res = await API.get("/api/dashboard");
+      const res = await API.get("/api/dashboard", { signal });
       setData(normalizeDashboardData(res.data));
       setError("");
     } catch (err) {
+      if (err?.name === "CanceledError" || err?.name === "AbortError") return;
       console.error(err);
       if (!silent) setError("Unable to load dashboard data.");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const loadTxns = useCallback(async (silent = false) => {
-    try {
-      const res = await API.get(`/api/transactions/${accountNumber}`);
-      setTxns(res.data || []);
-    } catch (err) {
-      console.error(err);
-      if (!silent) setError("Unable to load transactions.");
-    }
-  }, [accountNumber]);
+  const loadTxns = useCallback(
+    async (silent, signal) => {
+      try {
+        const res = await API.get(`/api/transactions/${accountNumber}`, { signal });
+        setTxns(res.data || []);
+      } catch (err) {
+        if (err?.name === "CanceledError" || err?.name === "AbortError") return;
+        console.error(err);
+        if (!silent) setError("Unable to load transactions.");
+      }
+    },
+    [accountNumber]
+  );
 
-  // ---- Initial load ----
+  // ---- Shared fetch runner: dedupes overlapping calls, cancels stale ones ----
+  const runFetch = useCallback(
+    async (silent) => {
+      if (isFetchingRef.current) return; // a fetch is already in flight, skip this tick
+      isFetchingRef.current = true;
+
+      if (abortRef.current) abortRef.current.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+
+      try {
+        await Promise.all([
+          loadDashboard(silent, controller.signal),
+          loadTxns(silent, controller.signal),
+        ]);
+      } finally {
+        isFetchingRef.current = false;
+      }
+    },
+    [loadDashboard, loadTxns]
+  );
+
   const fetchInitial = useCallback(async () => {
     setLoading(true);
-    await Promise.all([loadDashboard(true), loadTxns(true)]);
+    await runFetch(true);
     setLoading(false);
-  }, [loadDashboard, loadTxns]);
+  }, [runFetch]);
 
-  // ---- Silent refresh (background) ----
   const refreshData = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadDashboard(true), loadTxns(true)]);
+    await runFetch(true);
     setRefreshing(false);
-  }, [loadDashboard, loadTxns]);
+  }, [runFetch]);
 
-  // ---- Polling every 5 seconds (silent) ----
+  // ---- Initial load + polling every 5 seconds, paused while the tab is
+  // hidden so background tabs don't burn cycles/bandwidth (a big source
+  // of perceived slowness once you switch back). ----
   useEffect(() => {
     fetchInitial();
-    const interval = setInterval(refreshData, 5000);
-    return () => clearInterval(interval);
-  }, [fetchInitial, refreshData]);
+
+    let interval = null;
+    const startPolling = () => {
+      if (interval) return;
+      interval = setInterval(() => runFetch(true), 5000);
+    };
+    const stopPolling = () => {
+      if (interval) clearInterval(interval);
+      interval = null;
+    };
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        stopPolling();
+      } else {
+        runFetch(true); // catch up immediately on return
+        startPolling();
+      }
+    };
+
+    startPolling();
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibility);
+      if (abortRef.current) abortRef.current.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchInitial, runFetch]);
 
   // ---- Memoized filtered transactions ----
   const filteredTxns = useMemo(() => {
@@ -203,54 +354,66 @@ const Dashboard = memo(() => {
       .slice(0, 5);
   }, [filteredTxns]);
 
-  // ---- Analytics ----
+  // Only debit-side transactions count as "spend" — deposits are money in,
+  // not spend, and mixing them in was producing inaccurate totals/charts.
+  const debitTxns = useMemo(
+    () => filteredTxns.filter((tx) => !isCreditType(tx.transactionType)),
+    [filteredTxns]
+  );
+
+  // ---- Analytics (built only from real, correctly-signed spend data) ----
   const analyticsData = useMemo(() => {
-    if (!filteredTxns || filteredTxns.length === 0) return null;
+    if (!debitTxns || debitTxns.length === 0) return null;
 
     const groupByDate = {};
     const categorySpending = {};
 
-    filteredTxns.forEach((tx) => {
+    debitTxns.forEach((tx) => {
       const date = new Date(tx.transactionDate).toLocaleDateString("en-IN", {
         month: "short",
         day: "numeric",
       });
       const category = tx.transactionType || "Other";
-      const amount = Number(tx.amount) || 0;
+      const amount = Math.abs(Number(tx.amount) || 0);
 
       groupByDate[date] = (groupByDate[date] || 0) + amount;
       categorySpending[category] = (categorySpending[category] || 0) + amount;
     });
 
     return {
-      timeline: Object.entries(groupByDate).map(([date, amount]) => ({
-        date,
-        amount: parseFloat(amount.toFixed(2)),
-      })),
-      categories: Object.entries(categorySpending).map(([name, value]) => ({
-        name,
-        value: parseFloat(value.toFixed(2)),
-      })),
+      timeline: Object.entries(groupByDate)
+        .map(([date, amount]) => ({
+          date,
+          amount: parseFloat(amount.toFixed(2)),
+        }))
+        // keep the trend chronological, not insertion-order
+        .sort((a, b) => new Date(a.date) - new Date(b.date)),
+      categories: Object.entries(categorySpending)
+        .map(([name, value]) => ({
+          name,
+          value: parseFloat(value.toFixed(2)),
+        }))
+        .sort((a, b) => b.value - a.value),
     };
-  }, [filteredTxns]);
+  }, [debitTxns]);
 
-  // ---- Metrics ----
+  // ---- Metrics (debit-only, so "Total Spent" actually means spent) ----
   const totalSpent = useMemo(
-    () => filteredTxns.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0),
-    [filteredTxns]
+    () => debitTxns.reduce((sum, tx) => sum + Math.abs(Number(tx.amount) || 0), 0),
+    [debitTxns]
   );
 
   const avgTransaction = useMemo(
-    () => (filteredTxns.length > 0 ? totalSpent / filteredTxns.length : 0),
-    [filteredTxns, totalSpent]
+    () => (debitTxns.length > 0 ? totalSpent / debitTxns.length : 0),
+    [debitTxns, totalSpent]
   );
 
   const maxTransaction = useMemo(
     () =>
-      filteredTxns.length > 0
-        ? Math.max(...filteredTxns.map((tx) => Number(tx.amount) || 0))
+      debitTxns.length > 0
+        ? Math.max(...debitTxns.map((tx) => Math.abs(Number(tx.amount) || 0)))
         : 0,
-    [filteredTxns]
+    [debitTxns]
   );
 
   const growthRate = useMemo(() => {
@@ -258,22 +421,19 @@ const Dashboard = memo(() => {
     const startDate = getDateRange(timePeriod);
     const midDate = new Date((startDate.getTime() + now.getTime()) / 2);
 
-    const firstHalf = filteredTxns.filter(
-      (tx) => new Date(tx.transactionDate) < midDate
-    );
-    const secondHalf = filteredTxns.filter(
-      (tx) => new Date(tx.transactionDate) >= midDate
-    );
+    const firstHalf = debitTxns.filter((tx) => new Date(tx.transactionDate) < midDate);
+    const secondHalf = debitTxns.filter((tx) => new Date(tx.transactionDate) >= midDate);
 
-    const firstSum = firstHalf.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
-    const secondSum = secondHalf.reduce((sum, tx) => sum + (Number(tx.amount) || 0), 0);
+    const firstSum = firstHalf.reduce((sum, tx) => sum + Math.abs(Number(tx.amount) || 0), 0);
+    const secondSum = secondHalf.reduce((sum, tx) => sum + Math.abs(Number(tx.amount) || 0), 0);
 
     if (firstSum === 0) return 0;
     return (((secondSum - firstSum) / firstSum) * 100).toFixed(1);
-  }, [filteredTxns, timePeriod]);
+  }, [debitTxns, timePeriod]);
+
+  const categoryTotal = analyticsData?.categories.reduce((s, c) => s + c.value, 0) || 0;
 
   const statusLabel = data?.active ? "Active" : data?.status || "Inactive";
-  const COLORS = ["#0ea5e9", "#06b6d4", "#0d9488", "#8b5cf6", "#ec4899", "#f59e0b"];
 
   // ---- Render ----
   if (error && loading) {
@@ -282,7 +442,7 @@ const Dashboard = memo(() => {
         <p className="text-base text-rose-600">{error}</p>
         <button
           onClick={fetchInitial}
-          className="mt-4 rounded-full bg-sky-500 px-6 py-2 text-sm font-semibold text-white"
+          className="mt-4 rounded-full bg-blue-700 px-6 py-2 text-sm font-semibold text-white hover:bg-blue-800"
         >
           Retry
         </button>
@@ -315,53 +475,59 @@ const Dashboard = memo(() => {
   return (
     <div className="space-y-6 px-2 pb-6 sm:px-0">
       {/* ---------- Main Account Card ---------- */}
-      <section className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-sky-600 via-cyan-500 to-indigo-600 p-6 text-white shadow-2xl shadow-slate-900/10 fade-in-up sm:p-8">
-        <div className="pointer-events-none absolute -right-16 top-10 h-52 w-52 rounded-full bg-white/15 blur-3xl" />
-        <div className="pointer-events-none absolute left-8 top-16 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+      <section
+        className={`relative overflow-hidden rounded-[2rem] bg-gradient-to-br ${THEME.heroGradient} p-6 text-white shadow-2xl shadow-blue-950/20 fade-in-up sm:p-8`}
+      >
+        <div
+          className={`pointer-events-none absolute -right-16 top-10 h-52 w-52 rounded-full ${THEME.heroGlowA} blur-3xl`}
+        />
+        <div
+          className={`pointer-events-none absolute left-8 top-16 h-32 w-32 rounded-full ${THEME.heroGlowB} blur-2xl`}
+        />
 
         <div className="relative flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
           <div className="max-w-xl">
-            <p className="text-sm uppercase tracking-[0.32em] text-cyan-100/80">
+            <p className="text-sm uppercase tracking-[0.32em] text-teal-100/80">
               Welcome back
             </p>
             <h1 className="mt-3 text-3xl font-semibold leading-tight sm:text-4xl">
               Your banking hub
             </h1>
-            <p className="mt-4 max-w-2xl text-sm text-cyan-100/90 sm:text-base">
+            <p className="mt-4 max-w-2xl text-sm text-blue-100/90 sm:text-base">
               Real-time analytics and insights for smarter financial decisions.
             </p>
           </div>
 
-          <div className="rounded-[1.75rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-cyan-50 shadow-lg shadow-cyan-500/20">
+          <div className="rounded-[1.75rem] border border-white/20 bg-white/10 px-4 py-3 text-sm text-blue-50 shadow-lg shadow-blue-900/20">
             Account #{data.accountNumber || "N/A"}
           </div>
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="card-frost rounded-[1.75rem] border border-white/20 p-5 shadow-xl shadow-slate-950/5">
-            <p className="text-sm uppercase tracking-[0.24em] text-cyan-100/80">
+            <p className="text-sm uppercase tracking-[0.24em] text-teal-100/80">
               Live balance
             </p>
             <AnimatedBalance amount={data.balance} />
-            <p className="mt-2 text-xs text-cyan-100/80">Updates every 5 seconds</p>
+            <p className="mt-2 text-xs text-blue-100/80">Updates every 5 seconds</p>
           </div>
 
           <div className="card-frost rounded-[1.75rem] border border-white/20 p-5 shadow-xl shadow-slate-950/5">
-            <p className="text-sm uppercase tracking-[0.24em] text-cyan-100/80">
+            <p className="text-sm uppercase tracking-[0.24em] text-teal-100/80">
               Account type
             </p>
             <p className="mt-4 text-2xl font-semibold">{data.accountType}</p>
           </div>
 
           <div className="card-frost rounded-[1.75rem] border border-white/20 p-5 shadow-xl shadow-slate-950/5">
-            <p className="text-sm uppercase tracking-[0.24em] text-cyan-100/80">
+            <p className="text-sm uppercase tracking-[0.24em] text-teal-100/80">
               Status
             </p>
             <span
               className={`mt-4 inline-flex rounded-full px-4 py-2 text-sm font-semibold ${
                 data.active
                   ? "bg-emerald-100/90 text-emerald-900"
-                  : "bg-rose-100/90 text-rose-900"
+                  : "bg-slate-200/90 text-slate-700"
               }`}
             >
               {statusLabel}
@@ -373,21 +539,21 @@ const Dashboard = memo(() => {
           <div className="flex flex-wrap gap-3">
             <button
               type="button"
-              className="btn-glow inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition duration-200 hover:bg-slate-100"
+              className={`btn-glow inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-blue-900 outline-none transition duration-200 hover:bg-slate-100 focus-visible:ring-2 ${THEME.ring}`}
               onClick={() => navigate("/transfer")}
             >
               Transfer
             </button>
             <button
               type="button"
-              className="btn-glow inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition duration-200 hover:bg-slate-100"
+              className={`btn-glow inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-blue-900 outline-none transition duration-200 hover:bg-slate-100 focus-visible:ring-2 ${THEME.ring}`}
               onClick={() => navigate("/deposit")}
             >
               Deposit
             </button>
             <button
               type="button"
-              className="btn-glow inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-900 transition duration-200 hover:bg-slate-100"
+              className={`btn-glow inline-flex items-center justify-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-blue-900 outline-none transition duration-200 hover:bg-slate-100 focus-visible:ring-2 ${THEME.ring}`}
               onClick={() => navigate("/withdraw")}
             >
               Withdraw
@@ -435,7 +601,7 @@ const Dashboard = memo(() => {
             onClick={() => setTimePeriod(period)}
             className={`rounded-full px-5 py-2 text-sm font-semibold transition duration-200 ${
               timePeriod === period
-                ? "bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-lg shadow-cyan-500/30"
+                ? `bg-gradient-to-r ${THEME.accentGradient} text-white shadow-lg shadow-teal-600/30`
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
@@ -452,10 +618,10 @@ const Dashboard = memo(() => {
               Total Spent
             </p>
             <p className="mt-4 text-2xl font-semibold text-slate-900">
-              {formatCurrency(totalSpent).replace("INR", "₹")}
+              {formatShortCurrency(totalSpent)}
             </p>
             <p className="mt-2 text-xs text-slate-500">
-              {filteredTxns.length} transactions
+              {debitTxns.length} debit transactions
             </p>
           </div>
 
@@ -464,9 +630,9 @@ const Dashboard = memo(() => {
               Average Transaction
             </p>
             <p className="mt-4 text-2xl font-semibold text-slate-900">
-              {formatCurrency(avgTransaction).replace("INR", "₹")}
+              {formatShortCurrency(avgTransaction)}
             </p>
-            <p className="mt-2 text-xs text-slate-500">Per transaction</p>
+            <p className="mt-2 text-xs text-slate-500">Per debit transaction</p>
           </div>
 
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/60">
@@ -474,9 +640,9 @@ const Dashboard = memo(() => {
               Highest Transaction
             </p>
             <p className="mt-4 text-2xl font-semibold text-slate-900">
-              {formatCurrency(maxTransaction).replace("INR", "₹")}
+              {formatShortCurrency(maxTransaction)}
             </p>
-            <p className="mt-2 text-xs text-slate-500">Max amount</p>
+            <p className="mt-2 text-xs text-slate-500">Max debit amount</p>
           </div>
 
           <div className="rounded-[1.75rem] border border-slate-200 bg-white p-6 shadow-lg shadow-slate-200/60">
@@ -491,7 +657,7 @@ const Dashboard = memo(() => {
               {growthRate >= 0 ? "+" : ""}
               {growthRate}%
             </p>
-            <p className="mt-2 text-xs text-slate-500">Period-over-period</p>
+            <p className="mt-2 text-xs text-slate-500">Period-over-period spend</p>
           </div>
         </div>
       )}
@@ -508,40 +674,58 @@ const Dashboard = memo(() => {
                 Spending over time
               </h2>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={analyticsData.timeline}>
-                <defs>
-                  <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0.1} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="date" stroke="#64748b" />
-                <YAxis stroke="#64748b" />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#ffffff",
-                    border: "1px solid #e2e8f0",
-                    borderRadius: "0.75rem",
-                  }}
-                  formatter={(value) => formatCurrency(value)}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="amount"
-                  stroke="#0ea5e9"
-                  fillOpacity={1}
-                  fill="url(#colorAmount)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <div className="h-[240px] sm:h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart
+                  data={analyticsData.timeline}
+                  margin={{ top: 8, right: 8, left: -12, bottom: 0 }}
+                >
+                  <defs>
+                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor={THEME.accentSolid} stopOpacity={0.8} />
+                      <stop offset="95%" stopColor={THEME.accentSolid} stopOpacity={0.08} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    stroke="#64748b"
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={false}
+                    minTickGap={24}
+                  />
+                  <YAxis
+                    stroke="#64748b"
+                    tick={{ fontSize: 12 }}
+                    tickLine={false}
+                    axisLine={false}
+                    width={56}
+                    tickFormatter={(v) => `₹${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`}
+                  />
+                  <Tooltip content={<TrendTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke={THEME.accentSolid}
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorAmount)"
+                    isAnimationActive={false}
+                    activeDot={{ r: 5, fill: THEME.accentSolid }}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
         )}
 
         {analyticsData && analyticsData.categories.length > 0 && (
-          <div className="rounded-[1.75rem] bg-white p-6 shadow-lg shadow-slate-200/60">
-            <div className="mb-6">
+          <div
+            className="rounded-[1.75rem] bg-white p-6 shadow-lg shadow-slate-200/60"
+            onMouseLeave={() => setActiveCategory(null)}
+          >
+            <div className="mb-2">
               <p className="text-sm uppercase tracking-[0.24em] text-slate-500">
                 Category Breakdown
               </p>
@@ -549,27 +733,60 @@ const Dashboard = memo(() => {
                 Spending by type
               </h2>
             </div>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={analyticsData.categories}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) =>
-                    `${name}: ${formatCurrency(value).replace("INR", "₹")}`
-                  }
-                  outerRadius={80}
-                  fill="#0ea5e9"
-                  dataKey="value"
-                >
-                  {analyticsData.categories.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-              </PieChart>
-            </ResponsiveContainer>
+
+            <div className="grid gap-4 sm:grid-cols-2 sm:items-center">
+              <div className="h-[220px] sm:h-[240px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={analyticsData.categories}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={54}
+                      outerRadius={86}
+                      paddingAngle={2}
+                      dataKey="value"
+                      isAnimationActive={false}
+                      onMouseEnter={(entry) => setActiveCategory(entry.name)}
+                      onClick={(entry) =>
+                        setActiveCategory((prev) => (prev === entry.name ? null : entry.name))
+                      }
+                    >
+                      {analyticsData.categories.map((entry, index) => (
+                        <Cell
+                          key={`cell-${entry.name}`}
+                          fill={CATEGORY_COLORS[index % CATEGORY_COLORS.length]}
+                          opacity={
+                            activeCategory && activeCategory !== entry.name ? 0.35 : 1
+                          }
+                          stroke="#ffffff"
+                          strokeWidth={2}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value) => formatShortCurrency(value)}
+                      contentStyle={{
+                        borderRadius: "0.75rem",
+                        border: "1px solid #e2e8f0",
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Full breakdown — always rendered so every category (Transfer,
+                  Deposit, FD Create, Withdraw, ...) is visible on both touch
+                  and pointer devices, not just whichever slice happens to be
+                  under the cursor. Hovering/tapping a row (or a slice) cross
+                  -highlights the other. */}
+              <CategoryBreakdownList
+                categories={analyticsData.categories}
+                total={categoryTotal}
+                activeName={activeCategory}
+                onHover={setActiveCategory}
+              />
+            </div>
           </div>
         )}
       </div>
@@ -644,8 +861,15 @@ const Dashboard = memo(() => {
                         {new Date(tx.transactionDate).toLocaleString("en-IN")}
                       </p>
                     </div>
-                    <div className="rounded-full bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-900">
-                      {formatCurrency(tx.amount).replace("INR", "₹")}
+                    <div
+                      className={`rounded-full px-3 py-2 text-sm font-semibold ${
+                        isCreditType(tx.transactionType)
+                          ? "bg-emerald-50 text-emerald-700"
+                          : "bg-slate-100 text-slate-900"
+                      }`}
+                    >
+                      {isCreditType(tx.transactionType) ? "+" : "-"}
+                      {formatShortCurrency(Math.abs(tx.amount))}
                     </div>
                   </div>
                 </li>
