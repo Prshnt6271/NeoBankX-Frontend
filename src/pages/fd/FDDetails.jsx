@@ -101,7 +101,7 @@ function FDDetailsContent() {
   const fetchFD = async () => {
     try {
       setLoading(true);
-      const response = await API.get(`/fd/${id}`);
+      const response = await API.get(`/api/fd/${id}`);
       setFd(response.data);
       setError("");
     } catch (err) {
