@@ -44,7 +44,7 @@ export default function AdminKycPanel() {
   const fetchKycs = useCallback(async () => {
     try {
       setLoading(true);
-      const res = await API.get("/kyc/admin/all");
+      const res = await API.get("/api/kyc/admin/all");
       setKycs(res.data || []);
     } catch (err) {
       console.error(err);
