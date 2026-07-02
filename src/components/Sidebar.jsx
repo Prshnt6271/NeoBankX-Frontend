@@ -1,4 +1,3 @@
-
 import {
   LayoutDashboard,
   Send,
@@ -111,15 +110,15 @@ const SidebarContent = ({ onClose }) => {
     : "NB";
 
   return (
-    <div className="flex h-full flex-col px-4 py-6">
+    <div className="flex h-full min-h-0 flex-col px-4 py-6">
 
       {/* Logo */}
-      <div className="mb-8 px-1">
+      <div className="mb-8 px-1 shrink-0">
         <BankLogo />
       </div>
 
       {/* User Card */}
-      <div className="mb-6 flex items-center gap-3 rounded-2xl bg-slate-50 border border-slate-100 px-3 py-3">
+      <div className="mb-6 flex items-center gap-3 rounded-2xl bg-slate-50 border border-slate-100 px-3 py-3 shrink-0">
 
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-xs font-semibold text-white shadow-sm">
           {initials}
@@ -144,161 +143,161 @@ const SidebarContent = ({ onClose }) => {
         </div>
       </div>
 
-      {/* Navigation */}
-     <nav className="flex-1 space-y-0.5">
+      {/* Navigation (scrollable, footer stays pinned) */}
+      <nav className="flex-1 min-h-0 space-y-0.5 overflow-y-auto pr-1 -mr-1">
 
-  <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-    Main
-  </p>
+        <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+          Main
+        </p>
 
-  <NavEntry
-    to="/dashboard"
-    icon={<LayoutDashboard size={15} />}
-    label="Dashboard"
-    onClose={onClose}
-  />
+        <NavEntry
+          to="/dashboard"
+          icon={<LayoutDashboard size={15} />}
+          label="Dashboard"
+          onClose={onClose}
+        />
 
-  <NavEntry
-    to="/profile"
-    icon={<User size={15} />}
-    label="Profile"
-    onClose={onClose}
-  />
+        <NavEntry
+          to="/profile"
+          icon={<User size={15} />}
+          label="Profile"
+          onClose={onClose}
+        />
 
-  <NavEntry
-    to="/transactions"
-    icon={<History size={15} />}
-    label="Transactions"
-    onClose={onClose}
-  />
+        <NavEntry
+          to="/transactions"
+          icon={<History size={15} />}
+          label="Transactions"
+          onClose={onClose}
+        />
 
-  {!isAdmin && (
-    <>
-      {/* Banking */}
-      <div className="mb-2 mt-5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-        Banking
-      </div>
+        {!isAdmin && (
+          <>
+            {/* Banking */}
+            <div className="mb-2 mt-5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              Banking
+            </div>
 
-      <NavEntry
-        to="/deposit"
-        icon={<PlusCircle size={15} />}
-        label="Deposit"
-        onClose={onClose}
-      />
+            <NavEntry
+              to="/deposit"
+              icon={<PlusCircle size={15} />}
+              label="Deposit"
+              onClose={onClose}
+            />
 
-      <NavEntry
-        to="/transfer"
-        icon={<Send size={15} />}
-        label="Transfer"
-        onClose={onClose}
-      />
+            <NavEntry
+              to="/transfer"
+              icon={<Send size={15} />}
+              label="Transfer"
+              onClose={onClose}
+            />
 
-      <NavEntry
-        to="/withdraw"
-        icon={<ArrowDownCircle size={15} />}
-        label="Withdraw"
-        onClose={onClose}
-      />
+            <NavEntry
+              to="/withdraw"
+              icon={<ArrowDownCircle size={15} />}
+              label="Withdraw"
+              onClose={onClose}
+            />
 
-      <NavEntry
-        to="/scheduled-transfers"
-        icon={<CalendarClock size={15} />}
-        label="Scheduled Transfers"
-        onClose={onClose}
-      />
+            <NavEntry
+              to="/scheduled-transfers"
+              icon={<CalendarClock size={15} />}
+              label="Scheduled Transfers"
+              onClose={onClose}
+            />
 
-      <NavEntry
-        to="/limits"
-        icon={<Gauge size={15} />}
-        label="Limits Overview"
-        onClose={onClose}
-      />
+            <NavEntry
+              to="/limits"
+              icon={<Gauge size={15} />}
+              label="Limits Overview"
+              onClose={onClose}
+            />
 
-      {/* Fixed Deposits */}
-      <div className="mb-2 mt-5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-        Fixed Deposits
-      </div>
+            {/* Fixed Deposits */}
+            <div className="mb-2 mt-5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              Fixed Deposits
+            </div>
 
-      <NavEntry
-        to="/fd/create"
-        icon={<Landmark size={15} />}
-        label="Open FD"
-        onClose={onClose}
-      />
+            <NavEntry
+              to="/fd/create"
+              icon={<Landmark size={15} />}
+              label="Open FD"
+              onClose={onClose}
+            />
 
-      <NavEntry
-        to="/fd/my-fds"
-        icon={<Wallet size={15} />}
-        label="My FDs"
-        onClose={onClose}
-      />
+            <NavEntry
+              to="/fd/my-fds"
+              icon={<Wallet size={15} />}
+              label="My FDs"
+              onClose={onClose}
+            />
 
-      {/* Services */}
-      <div className="mb-2 mt-5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-        Services
-      </div>
+            {/* Services */}
+            <div className="mb-2 mt-5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              Services
+            </div>
 
-      <NavEntry
-        to="/kyc"
-        icon={<Shield size={15} />}
-        label="KYC Verification"
-        onClose={onClose}
-      />
-    </>
-  )}
+            <NavEntry
+              to="/kyc"
+              icon={<Shield size={15} />}
+              label="KYC Verification"
+              onClose={onClose}
+            />
+          </>
+        )}
 
-  {isAdmin && (
-    <>
-      <div className="mb-2 mt-5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-        Admin
-      </div>
+        {isAdmin && (
+          <>
+            <div className="mb-2 mt-5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              Admin
+            </div>
 
-      <NavEntry
-        to="/admin/transactions"
-        icon={<CreditCard size={15} />}
-        label="All Transactions"
-        onClose={onClose}
-      />
+            <NavEntry
+              to="/admin/transactions"
+              icon={<CreditCard size={15} />}
+              label="All Transactions"
+              onClose={onClose}
+            />
 
-      <NavEntry
-        to="/admin/kyc"
-        icon={<Shield size={15} />}
-        label="KYC Panel"
-        onClose={onClose}
-      />
+            <NavEntry
+              to="/admin/kyc"
+              icon={<Shield size={15} />}
+              label="KYC Panel"
+              onClose={onClose}
+            />
 
-      {/* FD Management */}
-      <div className="mb-2 mt-5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
-        FD Management
-      </div>
+            {/* FD Management */}
+            <div className="mb-2 mt-5 px-3 text-[10px] font-semibold uppercase tracking-widest text-slate-400">
+              FD Management
+            </div>
 
-      <NavEntry
-        to="/admin/fds"
-        icon={<Briefcase size={15} />}
-        label="Manage FDs"
-        onClose={onClose}
-      />
+            <NavEntry
+              to="/admin/fds"
+              icon={<Briefcase size={15} />}
+              label="Manage FDs"
+              onClose={onClose}
+            />
 
-      <NavEntry
-        to="/admin/fd-maturities"
-        icon={<Eye size={15} />}
-        label="Upcoming Maturities"
-        onClose={onClose}
-      />
+            <NavEntry
+              to="/admin/fd-maturities"
+              icon={<Eye size={15} />}
+              label="Upcoming Maturities"
+              onClose={onClose}
+            />
 
-      <NavEntry
-        to="/admin/customers"
-        icon={<Users size={15} />}
-        label="Customers"
-        onClose={onClose}
-      />
-    </>
-  )}
+            <NavEntry
+              to="/admin/customers"
+              icon={<Users size={15} />}
+              label="Customers"
+              onClose={onClose}
+            />
+          </>
+        )}
 
-</nav>
+      </nav>
 
-      {/* Footer */}
-      <div className="mt-6 space-y-2 border-t border-slate-100 pt-4">
+      {/* Footer - always pinned & visible */}
+      <div className="mt-4 space-y-2 border-t border-slate-100 pt-4 shrink-0">
 
         <div className="flex items-center gap-2 rounded-xl px-3 py-2">
 
@@ -315,7 +314,7 @@ const SidebarContent = ({ onClose }) => {
         <button
           type="button"
           onClick={logout}
-          className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-500 transition-all duration-200 hover:bg-red-50 hover:text-red-600"
+          className="group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-red-500 transition-all duration-200 hover:bg-red-50 hover:text-red-600 active:scale-[0.98]"
         >
           <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50 text-red-400 transition group-hover:bg-red-100">
             <LogOut size={15} />
@@ -336,7 +335,7 @@ export default function Sidebar({
   return (
     <>
       {/* Desktop Sidebar */}
-      <aside className="hidden w-72 flex-col border-r border-slate-100 bg-white lg:flex">
+      <aside className="hidden h-screen w-72 flex-col border-r border-slate-100 bg-white lg:flex">
         <SidebarContent onClose={onClose} />
       </aside>
 
@@ -356,7 +355,7 @@ export default function Sidebar({
         />
 
         <aside
-          className={`relative z-10 w-72 bg-white shadow-2xl transition-transform duration-300 ${
+          className={`relative z-10 flex h-screen w-[85%] max-w-72 flex-col bg-white shadow-2xl transition-transform duration-300 ${
             mobileOpen
               ? "translate-x-0"
               : "-translate-x-full"
@@ -364,7 +363,7 @@ export default function Sidebar({
         >
           <button
             onClick={onClose}
-            className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="absolute right-4 top-4 z-10 flex h-8 w-8 items-center justify-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           >
             <X size={16} />
           </button>

@@ -83,7 +83,7 @@ function MyFDsContent() {
 
   const fetchFDs = async () => {
     try {
-      const res = await API.get("/fd/my-fds");
+      const res = await API.get("/api/fd/my-fds");
       setFds(res.data);
     } catch (err) {
       showToast(
@@ -97,7 +97,7 @@ function MyFDsContent() {
 
   const breakFD = async (id) => {
     try {
-      const res = await API.post(`/fd/${id}/break`);
+      const res = await API.post(`/api/fd/${id}/break`);
       showToast(res.data || "FD broken successfully", "success");
       fetchFDs();
     } catch (err) {
