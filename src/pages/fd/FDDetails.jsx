@@ -290,7 +290,7 @@ function FDDetailsContent() {
         {/* Back to list link */}
         <div className="mt-8 text-center">
           <Link
-            to="/fd/my-fds"
+            to="/api/fd/my-fds"
             className="inline-flex items-center gap-2 text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors"
           >
             <ArrowLeft size={16} />
